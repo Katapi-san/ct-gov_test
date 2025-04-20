@@ -1,63 +1,93 @@
+import streamlit as st
 import requests
+import pandas as pd
+import base64
 
-def fetch_studies_in_japan(query_term="EGFR"):
+
+def fetch_studies_v2(cond_value, overall_status_value, location_value):
     """
-    ClinicalTrials.gov v2 APIを使い、指定した検索キーワードと
-    日本で実施中 (例: Recruiting) の治験データを取得する関数。
-
-    Parameters:
-    -----------
-    query_term : str
-        検索に使うキーワード。デフォルトは "EGFR"。
-        例: "lung cancer", "EGFR", "KRAS", etc.
-
-    Returns:
-    --------
-    dict
-        APIから取得したJSONレスポンス（Pythonの辞書）
+    ClinicalTrials.gov v2 API (Beta) からデータを取得する関数。
     """
     base_url = "https://clinicaltrials.gov/api/v2/studies"
 
-    # クエリパラメータ (v2 API はベータ版; 実際のキー名が変更される可能性あり)
     params = {
-        "query": query_term,     # 検索キーワード
-        "country": "Japan",      # 国指定
-        "status": "Recruiting",  # ステータス: 例として "Recruiting" に限定
-        "pageSize": 20,          # 1ページ当たりの取得件数
-        "page": 1                # ページ番号
+        "query.cond": cond_value,
+        "filter.overallStatus": overall_status_value,
+        "query.locn": location_value
     }
 
-    try:
-        response = requests.get(base_url, params=params)
-        response.raise_for_status()  # 4xx/5xxエラー時に例外
-        data = response.json()
-        return data
-    except requests.exceptions.HTTPError as e:
-        print(f"HTTP Error: {e}")
-    except Exception as e:
-        print(f"エラーが発生しました: {e}")
+    response = requests.get(base_url, params=params)
+    response.raise_for_status()
+    return response.json()
+
+
+def generate_download_link(df):
+    """
+    pandas DataFrame から base64 エンコードされた CSV ダウンロードリンクを生成。
+    """
+    csv = df.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()
+    return f'<a href="data:file/csv;base64,{b64}" download="clinicaltrials_results.csv">📥 CSVをダウンロード</a>'
+
+
+def extract_relevant_data(api_json):
+    """
+    APIレスポンスから、表表示・CSV化に適した情報を抽出。
+    """
+    studies = api_json.get("studies", [])
+    extracted = []
+
+    for study in studies:
+        protocol_id = study.get("protocolSection", {}).get("identificationModule", {}).get("nctId", "")
+        title = study.get("protocolSection", {}).get("identificationModule", {}).get("briefTitle", "")
+        condition = ", ".join(study.get("protocolSection", {}).get("conditionsModule", {}).get("conditions", []))
+        status = study.get("protocolSection", {}).get("statusModule", {}).get("overallStatus", "")
+        last_update = study.get("protocolSection", {}).get("statusModule", {}).get("lastUpdateSubmitDate", "")
+        url = f"https://clinicaltrials.gov/study/{protocol_id}" if protocol_id else ""
+
+        extracted.append({
+            "NCT ID": protocol_id,
+            "Title": title,
+            "Condition": condition,
+            "Status": status,
+            "Last Update": last_update,
+            "Link": url
+        })
+
+    return pd.DataFrame(extracted)
+
 
 def main():
-    # "EGFR" を検索する例
-    raw_data = fetch_studies_in_japan("EGFR")
+    st.title("ClinicalTrials.gov v2 検索ツール（ベータ版）")
 
-    # 返却データを簡易表示
-    if raw_data and "data" in raw_data and "studies" in raw_data["data"]:
-        studies_list = raw_data["data"]["studies"]
-        print(f"取得した治験数: {len(studies_list)}")
-        
-        for study in studies_list:
-            # サンプルとしてNCTID, タイトル, ステータスを表示
-            nct_id = study.get("nctId", "N/A")
-            title = study.get("title", "N/A")
-            status = study.get("overallStatus", "N/A")
-            
-            print("NCT ID:", nct_id)
-            print("Title:", title)
-            print("Status:", status)
-            print("-" * 80)
-    else:
-        print("検索結果が存在しないか、レスポンス形式が想定と異なっています。")
+    cond_value = st.text_input("Condition (query.cond)", "lung cancer")
+    overall_status_value = st.text_input("Overall Status (filter.overallStatus)", "RECRUITING")
+    location_value = st.text_input("Location (query.locn)", "Japan")
+
+    if st.button("Search"):
+        try:
+            data = fetch_studies_v2(cond_value, overall_status_value, location_value)
+            st.write("検索パラメータ:", {
+                "query.cond": cond_value,
+                "filter.overallStatus": overall_status_value,
+                "query.locn": location_value
+            })
+
+            df = extract_relevant_data(data)
+
+            if not df.empty:
+                st.subheader("🔍 検索結果")
+                st.dataframe(df, use_container_width=True)
+
+                st.markdown(generate_download_link(df), unsafe_allow_html=True)
+            else:
+                st.warning("検索結果が見つかりませんでした。")
+
+        except requests.exceptions.HTTPError as e:
+            st.error(f"HTTP Error: {e}")
+        except Exception as e:
+            st.error(f"エラーが発生しました: {e}")
+
 
 if __name__ == "__main__":
     main()
