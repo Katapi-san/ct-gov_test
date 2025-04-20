@@ -58,7 +58,7 @@ def extract_relevant_data(api_json):
 
 
 def main():
-    st.title("ClinicalTrials.gov v2 検索ツール（ベータ版）")
+    st.title("ClinicalTrials.gov v2 検索ツール（ベータ版）　その2")
 
     cond_value = st.text_input("Condition (query.cond)", "lung cancer")
     overall_status_value = st.text_input("Overall Status (filter.overallStatus)", "RECRUITING")
