@@ -53,4 +53,33 @@ def main():
                 protocol = s.get("protocolSection", {})
                 id_info = protocol.get("identificationModule", {})
                 status = protocol.get("statusModule", {})
-                conditions = protocol.get("conditionsModule
+                conditions = protocol.get("conditionsModule", {})
+                sponsor = protocol.get("sponsorCollaboratorsModule", {})
+
+                result_rows.append({
+                    "Study Title": id_info.get("briefTitle", "N/A"),
+                    "NCT Number": id_info.get("nctId", "N/A"),
+                    "Status": status.get("overallStatus", "N/A"),
+                    "Condition": ", ".join(conditions.get("conditions", [])),
+                    "Sponsor": sponsor.get("leadSponsor", {}).get("name", "N/A")
+                })
+
+            df = pd.DataFrame(result_rows)
+
+            # 表表示
+            st.subheader("検索結果")
+            st.dataframe(df)
+
+            # CSV ダウンロード
+            csv = df.to_csv(index=False)
+            b64 = base64.b64encode(csv.encode()).decode()
+            href = f'<a href="data:file/csv;base64,{b64}" download="clinical_trials.csv">📥 CSVをダウンロード</a>'
+            st.markdown(href, unsafe_allow_html=True)
+
+        except requests.exceptions.HTTPError as e:
+            st.error(f"HTTP Error: {e}")
+        except Exception as e:
+            st.error(f"エラーが発生しました: {e}")
+
+
+main()
