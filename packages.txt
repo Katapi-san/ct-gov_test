@@ -1,5 +1,2 @@
 chromium-browser
 chromium-chromedriver
-unzip
-wget
-curl
