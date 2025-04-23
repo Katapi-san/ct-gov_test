@@ -14,7 +14,7 @@ def fetch_studies_v2(cond_value, overall_status_value, location_value, term_valu
         "filter.overallStatus": overall_status_value,
         "query.locn": location_value,
         "query.term": term_value,
-        "query.sponsor": sponsor_value  # スポンサー企業名での絞り込みを追加
+        "query.spons": sponsor_value  # スポンサー企業名での絞り込みを追加
     }
 
     response = requests.get(base_url, params=params)
@@ -25,12 +25,12 @@ def fetch_studies_v2(cond_value, overall_status_value, location_value, term_valu
 def main():
     st.title("ClinicalTrials.gov v2 検索ツール（ベータ版）")
 
-    # 入力フォームに Sponsor Name（query.sponsor）追加
+    # 入力フォームに Sponsor Name（query.spons）追加
     cond_value = st.text_input("Condition (query.cond)", "lung cancer")
     overall_status_value = st.text_input("Overall Status (filter.overallStatus)", "RECRUITING")
     location_value = st.text_input("Location (query.locn)", "Japan")
     term_value = st.text_input("Other Terms (query.term)", "EGFR")
-    sponsor_value = st.text_input("Sponsor Name (query.sponsor)", "")  # スポンサー企業名の入力フィールド
+    sponsor_value = st.text_input("Sponsor Name (query.spons)", "")  # スポンサー企業名の入力フィールド
 
     if st.button("Search"):
         try:
@@ -41,7 +41,7 @@ def main():
                 "filter.overallStatus": overall_status_value,
                 "query.locn": location_value,
                 "query.term": term_value,
-                "query.sponsor": sponsor_value
+                "query.spons": sponsor_value
             })
 
             studies = data.get("studies", [])
