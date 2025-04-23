@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import base64
 
-def fetch_studies_v2(cond_value, overall_status_value, location_value, term_value):
+def fetch_studies_v2(cond_value, overall_status_value, location_value, term_value, sponsor_value):
     """
     ClinicalTrials.gov v2 API からデータを取得
     """
@@ -13,7 +13,8 @@ def fetch_studies_v2(cond_value, overall_status_value, location_value, term_valu
         "query.cond": cond_value,
         "filter.overallStatus": overall_status_value,
         "query.locn": location_value,
-        "query.term": term_value  # ← 追加
+        "query.term": term_value,
+        "query.sponsor": sponsor_value  # スポンサー企業名での絞り込みを追加
     }
 
     response = requests.get(base_url, params=params)
@@ -24,21 +25,23 @@ def fetch_studies_v2(cond_value, overall_status_value, location_value, term_valu
 def main():
     st.title("ClinicalTrials.gov v2 検索ツール（ベータ版）")
 
-    # 🔽 入力フォームに Other Term（query.term）追加
+    # 入力フォームに Sponsor Name（query.sponsor）追加
     cond_value = st.text_input("Condition (query.cond)", "lung cancer")
     overall_status_value = st.text_input("Overall Status (filter.overallStatus)", "RECRUITING")
     location_value = st.text_input("Location (query.locn)", "Japan")
-    term_value = st.text_input("Other Terms (query.term)", "EGFR")  # ← デフォルトで EGFR
+    term_value = st.text_input("Other Terms (query.term)", "EGFR")
+    sponsor_value = st.text_input("Sponsor Name (query.sponsor)", "")  # スポンサー企業名の入力フィールド
 
     if st.button("Search"):
         try:
-            data = fetch_studies_v2(cond_value, overall_status_value, location_value, term_value)
+            data = fetch_studies_v2(cond_value, overall_status_value, location_value, term_value, sponsor_value)
 
             st.write("検索パラメータ:", {
                 "query.cond": cond_value,
                 "filter.overallStatus": overall_status_value,
                 "query.locn": location_value,
-                "query.term": term_value
+                "query.term": term_value,
+                "query.sponsor": sponsor_value
             })
 
             studies = data.get("studies", [])
@@ -47,7 +50,7 @@ def main():
                 st.warning("検索結果が見つかりませんでした。")
                 return
 
-            # 🔽 表示とCSV用データ加工
+            # 表示とCSV用データ加工
             result_rows = []
             for s in studies:
                 protocol = s.get("protocolSection", {})
@@ -80,7 +83,5 @@ def main():
             st.error(f"HTTP Error: {e}")
         except Exception as e:
             st.error(f"エラーが発生しました: {e}")
-
-
 
 main()
